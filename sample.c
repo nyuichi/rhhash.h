@@ -1,0 +1,111 @@
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
+#include "hash.h"
+
+struct entry {
+    struct hash_entry entry;
+    char *key;
+    int val;
+};
+
+struct hash_entry **buckets;
+int bits;
+
+long hash_cstr(char *cstr) {
+    long h = 0;
+    while (*cstr)
+        h = h * 31 + *cstr++;
+    return h;
+}
+
+struct entry *get(char *key) {
+    struct entry *e;
+    int k;
+    int hash = hash_cstr(key);
+    hash_for_each_possible_entry(e, k, hash, buckets, bits, entry) {
+        if (strcmp(e->key, key) == 0)
+            return e;
+    }
+    return NULL;
+}
+
+void add(char *key, int val) {
+    struct entry *e;
+    int k;
+    int hash = hash_cstr(key);
+    hash_for_each_possible_entry(e, k, hash, buckets, bits, entry) {
+        if (strcmp(e->key, key) == 0) {
+            e->val = val;
+            return;
+        }
+    }
+    e = malloc(sizeof *e);
+    e->key = strdup(key);
+    e->val = val;
+    INIT_HASH_ENTRY(&e->entry, hash);
+    hash_add(buckets, bits, &e->entry);
+}
+
+void del(char *key) {
+    struct entry *e;
+    int k;
+    int hash = hash_cstr(key);
+    hash_for_each_possible_entry(e, k, hash, buckets, bits, entry) {
+        if (strcmp(e->key, key) == 0) {
+            free(e->key);
+            free(e);
+            hash_del(buckets, bits, k);
+            return;
+        }
+    }
+}
+
+void show(void) {
+    int k;
+    hash_for_each (k, buckets, bits) {
+        struct entry *e = hash_entry(buckets[k], struct entry, entry);
+        printf("%s:\t\t%d\n", e->key, e->val);
+    }
+}
+
+int main() {
+    // Taken from course materials for "15-122 Principles of Imperative Computation" by Frank Pfenning
+    bits = 10;
+    int n = (1<<bits)-30;
+    int num_tests = 10;
+
+    printf("Testing array of size %d with %d values, %d times\n", (1 << bits), n, num_tests);
+    for (int j = 0; j < num_tests; j++) {
+        buckets = calloc(sizeof buckets[0], (1 << bits));
+        char key[256];
+        for (int i = 0; i < n; i++) {
+            sprintf(key, "%d", j*n+i);
+            int val = j*n+i;
+            add(key, val);
+        }
+        for (int i = 0; i < n; i++) {
+            sprintf(key, "%d", j*n+i);
+            assert(get(key)->val == j*n+i); /* "missed existing element" */
+        }
+        for (int i = 0; i < n; i++) {
+            sprintf(key, "%d", (j+1)*n+i);
+            assert(get(key) == NULL); /* "found nonexistent element" */
+        }
+        for (int i = 0; i < n / 2; i++) {
+            sprintf(key, "%d", j*n+i);
+            del(key);
+        }
+        for (int i = 0; i < n / 2; i++) {
+            sprintf(key, "%d", j*n+i);
+            assert(get(key) == NULL); /* "found nonexistent element" */
+        }
+        for (int i = n / 2; i < n; i++) {
+            sprintf(key, "%d", j*n+i);
+            assert(get(key)->val == j*n+i); /* "missed existing element" */
+        }
+        free(buckets);
+    }
+    printf("All tests passed!\n");
+}
