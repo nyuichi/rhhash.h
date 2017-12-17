@@ -45,7 +45,7 @@ static inline void INIT_HASH_ENTRY(struct hash_entry *e, long hash) {
     e->hash = hash;
 }
 
-static int hash_index(struct hash_entry **buckets, int bits, long hash) {
+static int __hash_index(struct hash_entry **buckets, int bits, long hash) {
     int size = 1 << bits, mask = size - 1;
     int init = hash & mask;
     int k;
@@ -64,7 +64,7 @@ static int hash_index(struct hash_entry **buckets, int bits, long hash) {
     return k;
 }
 
-static int hash_prove(struct hash_entry **buckets, int bits, long hash, int index) {
+static int __hash_prove(struct hash_entry **buckets, int bits, long hash, int index) {
     int size = 1 << bits, mask = size - 1;
     int k;
     for (int i = 0; ; ++i) {
@@ -82,11 +82,11 @@ static int hash_prove(struct hash_entry **buckets, int bits, long hash, int inde
 }
 
 static inline int hash_get(struct hash_entry **buckets, int bits, long hash) {
-    return hash_prove(buckets, bits, hash, hash_index(buckets, bits, hash));
+    return __hash_prove(buckets, bits, hash, __hash_index(buckets, bits, hash));
 }
 
 static inline int hash_next(struct hash_entry **buckets, int bits, long hash, int index) {
-    return hash_prove(buckets, bits, hash, index + 1);
+    return __hash_prove(buckets, bits, hash, index + 1);
 }
 
 static inline bool hash_exist(struct hash_entry **buckets, int bits, long hash, int index) {
@@ -94,7 +94,7 @@ static inline bool hash_exist(struct hash_entry **buckets, int bits, long hash, 
     return e && e->hash == hash;
 }
 
-static void hash_reserve(struct hash_entry **buckets, int bits, int index) {
+static void __hash_reserve(struct hash_entry **buckets, int bits, int index) {
     int size = 1 << bits, mask = size - 1;
     struct hash_entry *e = NULL;
     for (int i = 0, dib = INT_MAX; i < size; ++i, ++dib) {
@@ -117,12 +117,12 @@ static void hash_reserve(struct hash_entry **buckets, int bits, int index) {
 
 static inline void hash_add(struct hash_entry **buckets, int bits, struct hash_entry *e) {
     // REQUIRE(buckets has empty slots)
-    int index = hash_index(buckets, bits, e->hash);
-    hash_reserve(buckets, bits, index);
+    int index = __hash_index(buckets, bits, e->hash);
+    __hash_reserve(buckets, bits, index);
     buckets[index] = e;
 }
 
-static void hash_del(struct hash_entry **buckets, int bits, int index) {
+static void hash_del(struct hash_entry **buckets, int bits, int index) { // delete by backward shifting
     int size = 1 << bits, mask = size - 1;
     for (int i = 0; ; ++i) {
         int k_prev = (i + index) & mask;
