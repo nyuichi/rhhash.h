@@ -13,17 +13,10 @@ struct entry {
 struct hash_entry **buckets;
 int bits;
 
-long hash_cstr(char *cstr) {
-    long h = 0;
-    while (*cstr)
-        h = h * 31 + *cstr++;
-    return h;
-}
-
-struct entry *get(char *key) {
+struct entry *get(const char *key) {
     struct entry *e;
     int k;
-    int hash = hash_cstr(key);
+    long hash = hash_str(key);
     hash_for_each_possible_entry(e, k, hash, buckets, bits, entry) {
         if (strcmp(e->key, key) == 0)
             return e;
@@ -31,10 +24,10 @@ struct entry *get(char *key) {
     return NULL;
 }
 
-void add(char *key, int val) {
+void add(const char *key, int val) {
     struct entry *e;
     int k;
-    int hash = hash_cstr(key);
+    long hash = hash_str(key);
     hash_for_each_possible_entry(e, k, hash, buckets, bits, entry) {
         if (strcmp(e->key, key) == 0) {
             e->val = val;
@@ -48,10 +41,10 @@ void add(char *key, int val) {
     hash_add(buckets, bits, &e->entry);
 }
 
-void del(char *key) {
+void del(const char *key) {
     struct entry *e;
     int k;
-    int hash = hash_cstr(key);
+    long hash = hash_str(key);
     hash_for_each_possible_entry(e, k, hash, buckets, bits, entry) {
         if (strcmp(e->key, key) == 0) {
             free(e->key);
@@ -63,9 +56,9 @@ void del(char *key) {
 }
 
 void show(void) {
+    struct entry *e;
     int k;
-    hash_for_each (k, buckets, bits) {
-        struct entry *e = hash_entry(buckets[k], struct entry, entry);
+    hash_for_each_entry (e, k, buckets, bits, entry) {
         printf("%s:\t\t%d\n", e->key, e->val);
     }
 }

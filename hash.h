@@ -72,7 +72,7 @@ static int hash_prove(struct hash_entry **buckets, int bits, long hash, int inde
         struct hash_entry *e_k = buckets[k];
         if (! e_k)
             break;
-        int hash_k = e_k->hash;
+        long hash_k = e_k->hash;
         if (hash_k == hash)
             break;
         if ((hash_k & mask) != (hash & mask))
@@ -154,5 +154,43 @@ static void hash_del(struct hash_entry **buckets, int bits, int index) {
 #define hash_for_each(k,buckets,bits) \
     for (k = 0; k < (1 << (bits)); ++k) \
         if (buckets[k])
+
+#define hash_for_each_entry(e,k,buckets,bits,field) \
+    hash_for_each(k,buckets,bits) \
+        if ((e = hash_entry(buckets[k], typeof(*e), field)), 1)
+
+long hash_str(const char *str) { // djb2
+    long hash = 5381, c;
+    while ((c = (unsigned) *str++))
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    return hash;
+}
+
+long hash_int(int i) { // Thomas Wang's 32bit hash
+    unsigned int key = i;
+    key = ~key + (key << 15); // key = (key << 15) - key - 1;
+    key = key ^ (key >> 12);
+    key = key + (key << 2);
+    key = key ^ (key >> 4);
+    key = key * 2057; // key = (key + (key << 3)) + (key << 11);
+    key = key ^ (key >> 16);
+    return (long) key; // upper bits will be zero, but sufficient for our purpose
+}
+
+long hash_long(long l) { // Thomas Wang's 64bit hash
+    unsigned long key = l;
+    key = (~key) + (key << 21); // key = (key << 21) - key - 1;
+    key = key ^ (key >> 24);
+    key = (key + (key << 3)) + (key << 8); // key * 265
+    key = key ^ (key >> 14);
+    key = (key + (key << 2)) + (key << 4); // key * 21
+    key = key ^ (key >> 28);
+    key = key + (key << 31);
+    return key;
+}
+
+long hash_ptr(void *ptr) {
+    return hash_long((long) ptr);
+}
 
 #endif
