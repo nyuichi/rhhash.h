@@ -55,6 +55,16 @@ void del(const char *key) {
     }
 }
 
+void clear(void) {
+    struct entry *e;
+    int k;
+    hash_for_each_entry (e, k, buckets, bits, entry) {
+        free(e->key);
+        free(e);
+        buckets[k] = NULL;
+    }
+}
+
 void show(void) {
     struct entry *e;
     int k;
@@ -98,6 +108,7 @@ int main() {
             sprintf(key, "%d", j*n+i);
             assert(get(key)->val == j*n+i); /* "missed existing element" */
         }
+        clear();
         free(buckets);
     }
     printf("All tests passed!\n");
