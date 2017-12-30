@@ -24,7 +24,7 @@ struct entry *get(const char *key) {
     return NULL;
 }
 
-void add(const char *key, int val) {
+void put(const char *key, int val) {
     struct entry *e;
     int k;
     long hash = rh_hash_str(key);
@@ -86,7 +86,7 @@ int main() {
         for (int i = 0; i < n; i++) {
             sprintf(key, "%d", j*n+i);
             int val = j*n+i;
-            add(key, val);
+            put(key, val);
         }
         for (int i = 0; i < n; i++) {
             sprintf(key, "%d", j*n+i);

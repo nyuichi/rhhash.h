@@ -193,4 +193,16 @@ long rh_hash_ptr(void *ptr) {
     return rh_hash_long((long) ptr);
 }
 
+static inline bool rh_upper_bound(int count, int bits) {
+    return count > ((1 << bits) * 29 + 29) / 32;
+}
+
+static void rh_copy(struct rh_head **new_buckets, int new_bits, struct rh_head **old_buckets, int old_bits) {
+    int k;
+    rh_for_each (k, old_buckets, old_bits) {
+        struct rh_head *e = old_buckets[k];
+        rh_add(new_buckets, new_bits, e);
+    }
+}
+
 #endif
