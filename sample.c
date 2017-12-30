@@ -2,22 +2,22 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
-#include "hash.h"
+#include "rhhash.h"
 
 struct entry {
-    struct hash_entry entry;
+    struct rh_head rh_head;
     char *key;
     int val;
 };
 
-struct hash_entry **buckets;
+struct rh_head **buckets;
 int bits;
 
 struct entry *get(const char *key) {
     struct entry *e;
     int k;
-    long hash = hash_str(key);
-    hash_for_each_possible_entry(e, k, hash, buckets, bits, entry) {
+    long hash = rh_hash_str(key);
+    rh_for_each_possible_entry(e, k, hash, buckets, bits, rh_head) {
         if (strcmp(e->key, key) == 0)
             return e;
     }
@@ -27,8 +27,8 @@ struct entry *get(const char *key) {
 void add(const char *key, int val) {
     struct entry *e;
     int k;
-    long hash = hash_str(key);
-    hash_for_each_possible_entry(e, k, hash, buckets, bits, entry) {
+    long hash = rh_hash_str(key);
+    rh_for_each_possible_entry(e, k, hash, buckets, bits, rh_head) {
         if (strcmp(e->key, key) == 0) {
             e->val = val;
             return;
@@ -37,19 +37,19 @@ void add(const char *key, int val) {
     e = malloc(sizeof *e);
     e->key = strdup(key);
     e->val = val;
-    INIT_HASH_ENTRY(&e->entry, hash);
-    hash_add(buckets, bits, &e->entry);
+    INIT_RH_HEAD(&e->rh_head, hash);
+    rh_add(buckets, bits, &e->rh_head);
 }
 
 void del(const char *key) {
     struct entry *e;
     int k;
-    long hash = hash_str(key);
-    hash_for_each_possible_entry(e, k, hash, buckets, bits, entry) {
+    long hash = rh_hash_str(key);
+    rh_for_each_possible_entry(e, k, hash, buckets, bits, rh_head) {
         if (strcmp(e->key, key) == 0) {
             free(e->key);
             free(e);
-            hash_del(buckets, bits, k);
+            rh_del(buckets, bits, k);
             return;
         }
     }
@@ -58,7 +58,7 @@ void del(const char *key) {
 void clear(void) {
     struct entry *e;
     int k;
-    hash_for_each_entry (e, k, buckets, bits, entry) {
+    rh_for_each_entry (e, k, buckets, bits, rh_head) {
         free(e->key);
         free(e);
         buckets[k] = NULL;
@@ -68,7 +68,7 @@ void clear(void) {
 void show(void) {
     struct entry *e;
     int k;
-    hash_for_each_entry (e, k, buckets, bits, entry) {
+    rh_for_each_entry (e, k, buckets, bits, rh_head) {
         printf("%s:\t\t%d\n", e->key, e->val);
     }
 }

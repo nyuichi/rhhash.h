@@ -1,5 +1,5 @@
 /*-
- * hash.h -- a Robin Hood hashing implementation in C
+ * rhhash.h -- a Robin Hood hashing implementation in C
  * Copyright (c) 2017 Yuichi Nishiwaki
  * All rights reserved.
  *
@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _HASH_H_
-#define _HASH_H_
+#ifndef _RHHASH_H_
+#define _RHHASH_H_
 
 #include <stddef.h>
 #include <limits.h>
@@ -37,21 +37,21 @@
 #undef typecheck
 #define typecheck(type,var) ({ typeof(var) *__tmp; __tmp = (type *) NULL; })
 
-struct hash_entry {
+struct rh_head {
     long hash;
 };
 
-static inline void INIT_HASH_ENTRY(struct hash_entry *e, long hash) {
+static inline void INIT_RH_HEAD(struct rh_head *e, long hash) {
     e->hash = hash;
 }
 
-static int __hash_index(struct hash_entry **buckets, int bits, long hash) {
+static int __rh_index(struct rh_head **buckets, int bits, long hash) {
     int size = 1 << bits, mask = size - 1;
     int init = hash & mask;
     int k;
     for (int i = 0, dib = 0; ; ++i, ++dib) {
         k = (init + i) & mask;
-        struct hash_entry *e_k = buckets[k];
+        struct rh_head *e_k = buckets[k];
         if (! e_k)
             break;
         int init_k = e_k->hash & mask;
@@ -64,12 +64,12 @@ static int __hash_index(struct hash_entry **buckets, int bits, long hash) {
     return k;
 }
 
-static int __hash_prove(struct hash_entry **buckets, int bits, long hash, int index) {
+static int __rh_prove(struct rh_head **buckets, int bits, long hash, int index) {
     int size = 1 << bits, mask = size - 1;
     int k;
     for (int i = 0; ; ++i) {
         k = (index + i) & mask;
-        struct hash_entry *e_k = buckets[k];
+        struct rh_head *e_k = buckets[k];
         if (! e_k)
             break;
         long hash_k = e_k->hash;
@@ -81,25 +81,25 @@ static int __hash_prove(struct hash_entry **buckets, int bits, long hash, int in
     return k;
 }
 
-static inline int hash_get(struct hash_entry **buckets, int bits, long hash) {
-    return __hash_prove(buckets, bits, hash, __hash_index(buckets, bits, hash));
+static inline int rh_get(struct rh_head **buckets, int bits, long hash) {
+    return __rh_prove(buckets, bits, hash, __rh_index(buckets, bits, hash));
 }
 
-static inline int hash_next(struct hash_entry **buckets, int bits, long hash, int index) {
-    return __hash_prove(buckets, bits, hash, index + 1);
+static inline int rh_next(struct rh_head **buckets, int bits, long hash, int index) {
+    return __rh_prove(buckets, bits, hash, index + 1);
 }
 
-static inline bool hash_exist(struct hash_entry **buckets, int bits, long hash, int index) {
-    struct hash_entry *e = buckets[index];
+static inline bool rh_exist(struct rh_head **buckets, int bits, long hash, int index) {
+    struct rh_head *e = buckets[index];
     return e && e->hash == hash;
 }
 
-static void __hash_reserve(struct hash_entry **buckets, int bits, int index) {
+static void __rh_reserve(struct rh_head **buckets, int bits, int index) {
     int size = 1 << bits, mask = size - 1;
-    struct hash_entry *e = NULL;
+    struct rh_head *e = NULL;
     for (int i = 0, dib = INT_MAX; i < size; ++i, ++dib) {
         int k = (index + i) & mask;
-        struct hash_entry *e_k = buckets[k];
+        struct rh_head *e_k = buckets[k];
         if (! e_k) {
             buckets[k] = e;
             return;
@@ -115,19 +115,19 @@ static void __hash_reserve(struct hash_entry **buckets, int bits, int index) {
     buckets[index] = e; // buckets are full, but keep the state of the table consistent
 }
 
-static inline void hash_add(struct hash_entry **buckets, int bits, struct hash_entry *e) {
+static inline void rh_add(struct rh_head **buckets, int bits, struct rh_head *e) {
     // REQUIRE(buckets has empty slots)
-    int index = __hash_index(buckets, bits, e->hash);
-    __hash_reserve(buckets, bits, index);
+    int index = __rh_index(buckets, bits, e->hash);
+    __rh_reserve(buckets, bits, index);
     buckets[index] = e;
 }
 
-static void hash_del(struct hash_entry **buckets, int bits, int index) { // delete by backward shifting
+static void rh_del(struct rh_head **buckets, int bits, int index) { // delete by backward shifting
     int size = 1 << bits, mask = size - 1;
     for (int i = 0; ; ++i) {
         int k_prev = (i + index) & mask;
         int k = (i + index + 1) & mask;
-        struct hash_entry *e_k = buckets[k];
+        struct rh_head *e_k = buckets[k];
         if (! e_k) {
             buckets[k_prev] = NULL;
             break;
@@ -142,31 +142,31 @@ static void hash_del(struct hash_entry **buckets, int bits, int index) { // dele
     }
 }
 
-#define	hash_entry(ptr,type,field) (typecheck(struct hash_entry *, ptr), container_of(ptr, type, field))
+#define	rh_entry(ptr,type,field) (typecheck(struct rh_head *, ptr), container_of(ptr, type, field))
 
-#define hash_for_each_possible(k,hash,buckets,bits) \
-    for (k = hash_get((buckets), (bits), (hash)); hash_exist((buckets), (bits), (hash), k); k = hash_next((buckets), (bits), (hash), k))
+#define rh_for_each_possible(k,hash,buckets,bits) \
+    for (k = rh_get((buckets), (bits), (hash)); rh_exist((buckets), (bits), (hash), k); k = rh_next((buckets), (bits), (hash), k))
 
-#define hash_for_each_possible_entry(e,k,hash,buckets,bits,field) \
-    hash_for_each_possible(k,hash,buckets,bits) \
-        if ((e = hash_entry(buckets[k], typeof(*e), field)), 1)
+#define rh_for_each_possible_entry(e,k,hash,buckets,bits,field) \
+    rh_for_each_possible(k,hash,buckets,bits) \
+        if ((e = rh_entry(buckets[k], typeof(*e), field)), 1)
 
-#define hash_for_each(k,buckets,bits) \
+#define rh_for_each(k,buckets,bits) \
     for (k = 0; k < (1 << (bits)); ++k) \
         if (buckets[k])
 
-#define hash_for_each_entry(e,k,buckets,bits,field) \
-    hash_for_each(k,buckets,bits) \
-        if ((e = hash_entry(buckets[k], typeof(*e), field)), 1)
+#define rh_for_each_entry(e,k,buckets,bits,field) \
+    rh_for_each(k,buckets,bits) \
+        if ((e = rh_entry(buckets[k], typeof(*e), field)), 1)
 
-long hash_str(const char *str) { // djb2
+long rh_hash_str(const char *str) { // djb2
     long hash = 5381, c;
     while ((c = (unsigned) *str++))
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
     return hash;
 }
 
-long hash_int(int i) { // Thomas Wang's 32bit hash
+long rh_hash_int(int i) { // Thomas Wang's 32bit hash
     unsigned int key = i;
     key = ~key + (key << 15); // key = (key << 15) - key - 1;
     key = key ^ (key >> 12);
@@ -177,7 +177,7 @@ long hash_int(int i) { // Thomas Wang's 32bit hash
     return (long) key; // upper bits will be zero, but sufficient for our purpose
 }
 
-long hash_long(long l) { // Thomas Wang's 64bit hash
+long rh_hash_long(long l) { // Thomas Wang's 64bit hash
     unsigned long key = l;
     key = (~key) + (key << 21); // key = (key << 21) - key - 1;
     key = key ^ (key >> 24);
@@ -189,8 +189,8 @@ long hash_long(long l) { // Thomas Wang's 64bit hash
     return key;
 }
 
-long hash_ptr(void *ptr) {
-    return hash_long((long) ptr);
+long rh_hash_ptr(void *ptr) {
+    return rh_hash_long((long) ptr);
 }
 
 #endif
